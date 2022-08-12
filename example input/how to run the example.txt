@@ -1,0 +1,5 @@
+to run the example 
+
+"<Path to createSoilfiles exe>\CreateSoilFiles_CO2.exe" "<path to layer file>ASHD05.lyr" /GN ASHD05 /SN Eudora
+
+if the layer file or executable or both is in the default folder then the path is not necessary
