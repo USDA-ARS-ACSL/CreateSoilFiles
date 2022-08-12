@@ -178,8 +178,7 @@
   </Target>
   -->
   <PropertyGroup>
-    <PostBuildEvent>copy "$(targetPath)" d:\maizsim07\Createsoils\createSoilFiles_CO2.exe
-copy  "$(SolutionDir)GridGenDll\debug\gridgendll.dll" "$(TargetDir)"
+    <PostBuildEvent>copy  "$(SolutionDir)GridGenDll\debug\gridgendll.dll" "$(TargetDir)"
 rem echo $(SolutionDir)
 rem echo $(TargetDir)</PostBuildEvent>
   </PropertyGroup>
