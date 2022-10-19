@@ -1,4 +1,4 @@
-#include <stdlib.h>
+﻿#include <stdlib.h>
 #include <atlstr.h>
 #include <cassert>
 #include <vector>
@@ -71,7 +71,7 @@ int main(int argc, char* argv[])
 
 		//write headers
 		HProperties <<   "           *** Material information ****                                                                   g/g  " << std::endl;
-		HProperties << "   thr       ths         tha       th      Alfa      n        Ks         Kk       thk       BulkD     OM    Sand    Silt    InitType" << std::endl;
+		HProperties << "   thr       ths         tha       thm      Alfa      n        Ks         Kk       thk       BulkD     OM    Sand    Silt    InitType" << std::endl;
 
 		textureData.getline(buffer, 250, '\n');
 
@@ -119,7 +119,26 @@ int main(int argc, char* argv[])
 					// handle this error
 				}
 				count++;
+				//DT 9-22-2022 based on a paper by Vogel et al.
+				// Advances in Water Resources 24 (2001) 133±144
+				// Eect of the shape of the soil hydraulic functions near saturation on
+				// variably - saturated ¯ow predictions
+				double vgths, vgthm, vgthk, vgkk;
+				if (rosoutput.vgnpar < 2.0 && rosoutput.vgnpar>1 && count==1)
+				{
+					vgthm = rosoutput.vgths;
+					vgths = rosoutput.vgths - 0.002;
+					vgthk = rosoutput.vgths - 0.004;
+					vgkk = rosoutput.ks  - (0.10 * rosoutput.ks);
+				}
+				else
+				{
+					vgthm = rosoutput.vgths;
+					vgths = rosoutput.vgths;
+					vgthk = rosoutput.vgths;
+					vgkk = rosoutput.ks ;
 
+				}
 				//std::cout << "theta_r " << rosoutput.vgthr << std::endl;
 				//std::cout << "theta_s " << rosoutput.vgths << std::endl;
 				//std::cout << "alpha   " << rosoutput.vgalp << std::endl;
@@ -131,14 +150,14 @@ int main(int argc, char* argv[])
 					<< setiosflags(ios::right)
 					<< setiosflags(ios::fixed)
 					<<  setw(9) << setprecision (3)   << rosoutput.vgthr  
-					<<  setw(9) << setprecision (3)  << rosoutput.vgths
+					<<  setw(9) << setprecision (3)  << vgths
 					<<  setw(9) << setprecision (3)  << rosoutput.vgthr 
-					<<  setw(9) << setprecision (3)  << rosoutput.vgths
+					<<  setw(9) << setprecision (3)  << vgthm
 					<<  setw(11) << setprecision (5)  << rosoutput.vgalp
 					<<  setw(11) << setprecision (5)  << rosoutput.vgnpar
 					<<  setw(9) << setprecision (3)  << rosoutput.ks 
-					<<  setw(9) << setprecision (3)  << rosoutput.ks
-					<<  setw(9) << setprecision (3)  << rosoutput.vgths 
+					<<  setw(9) << setprecision (3)  << vgkk
+					<<  setw(9) << setprecision (3)  << vgthk 
 					<<  setw(8) << setprecision (2)  << rosinput.bd
 					<<  setw(8) << setprecision (5)  << OM
 					<<  setw(8) << setprecision (2)  << rosinput.sand/100.0
