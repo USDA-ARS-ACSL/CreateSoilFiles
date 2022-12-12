@@ -49,11 +49,11 @@ int main(int argc, char* argv[])
 	char* inFile = (char*)calloc(256, sizeof(char));
 	char* buffer = (char*)calloc(256, sizeof(char));
 	CString errFile;
-	int count;
+	int layerCount;
 	float OM;
 	string InitType;
 	int Layer;
-	count=0;
+	layerCount=0;
 	string line;
 	inFile=argv[1];
 	_splitpath(inFile, drive, dir, fname, ext);
@@ -118,18 +118,38 @@ int main(int argc, char* argv[])
 					errorOut << "Something went wrong in making estimates" << std::endl;
 					// handle this error
 				}
-				count++;
+				double vgths, vgthm, vgthk, vgkk, m;
+				double Qee, Qs, Qs_temp, FH, FH1;
+				int count_fit = 0;
+				layerCount++;
 				//DT 9-22-2022 based on a paper by Vogel et al.
 				// Advances in Water Resources 24 (2001) 133±144
 				// Eect of the shape of the soil hydraulic functions near saturation on
 				// variably - saturated ¯ow predictions
-				double vgths, vgthm, vgthk, vgkk;
-				if (rosoutput.vgnpar < 2.0 && rosoutput.vgnpar>1 && count==1)
+
+				Qs_temp = 0.0;
+				
+				if (rosoutput.vgnpar < 2.0 && rosoutput.vgnpar>1.0) 
 				{
-					vgthm = rosoutput.vgths;
-					vgths = rosoutput.vgths - 0.002;
+					vgths = rosoutput.vgths;
 					vgthk = rosoutput.vgths - 0.004;
 					vgkk = rosoutput.ks  - (0.10 * rosoutput.ks);
+					Qs = 0.0;
+					m = 1.0 - 1.0 / rosoutput.vgnpar;
+				//find ths value such that hSat will be in the range of -5 to -8 cm
+					for (Qee = 0.930; Qee <= 1.0; Qee = Qee + .00001)
+					{
+						FH1 = pow(Qee, -1.0 / m) - 1.;
+						FH = (-1.0 / rosoutput.vgalp) * pow(FH1, 1. / rosoutput.vgnpar);
+
+						Qs_temp = ((rosoutput.vgths - rosoutput.vgthr)/Qee + 
+							rosoutput.vgthr)* (FH < -2.0)* (FH > -5.0);
+						Qs = Qs + Qs_temp;
+						count_fit = count_fit + (Qs_temp > 0);
+						//cout << "Qee, FH= Qs= " << Qee << " " << FH << " " << Qs_temp << endl;
+					}
+					vgthm = Qs / (double) count_fit;
+
 				}
 				else
 				{
@@ -149,15 +169,15 @@ int main(int argc, char* argv[])
 				HProperties 
 					<< setiosflags(ios::right)
 					<< setiosflags(ios::fixed)
-					<<  setw(9) << setprecision (3)   << rosoutput.vgthr  
-					<<  setw(9) << setprecision (3)  << vgths
-					<<  setw(9) << setprecision (3)  << rosoutput.vgthr 
-					<<  setw(9) << setprecision (3)  << vgthm
+					<<  setw(9) << setprecision (4)   << rosoutput.vgthr  
+					<<  setw(9) << setprecision (4)  << vgths
+					<<  setw(9) << setprecision (4)  << rosoutput.vgthr 
+					<<  setw(9) << setprecision (4)  << vgthm
 					<<  setw(11) << setprecision (5)  << rosoutput.vgalp
 					<<  setw(11) << setprecision (5)  << rosoutput.vgnpar
 					<<  setw(9) << setprecision (3)  << rosoutput.ks 
-					<<  setw(9) << setprecision (3)  << vgkk
-					<<  setw(9) << setprecision (3)  << vgthk 
+					<<  setw(9) << setprecision (4)  << vgkk
+					<<  setw(9) << setprecision (4)  << vgthk 
 					<<  setw(8) << setprecision (2)  << rosinput.bd
 					<<  setw(8) << setprecision (5)  << OM
 					<<  setw(8) << setprecision (2)  << rosinput.sand/100.0
