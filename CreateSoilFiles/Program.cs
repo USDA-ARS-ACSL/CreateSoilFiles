@@ -44,6 +44,7 @@
  *              
  * 4/10/2020  WSun modified program to add a new column (soil density) in nodal file.        
  * 5/4/2020   DT removed all references to element files and tables
+ * 4/13/2022  added organic N components to be read from layer file and then printed out in nod file.
  *             
  */
 using System;
@@ -64,7 +65,7 @@ namespace test_database_app
 
     public struct inFiles
     {
-        public String NodeFile;
+        public String NodeFile;   //contains fields to be written in the nod file
         public String GridFileForOutput;
         public String SoilFileForOutput; //contains van genuchten params
         public String SoilFile; // sand silt clay data and theta33 theta1500 if avail to create van genuchten params
@@ -154,7 +155,8 @@ namespace test_database_app
             ArrayList MasterSegment = new ArrayList(); // holds the individual segments for the Y nodes
 
            
-            Int16 BottomBC;     //Holds boundary code for bottom boundary, -2 for seepage, 1 for constant. 
+            Int16 BottomBC, GasBCTop, GasBCBottom;     //Holds boundary code for bottom boundary, -2 for seepage, 1 for constant, 7 for drainage.
+                                          //GasBC at the top -4 or 1, bottom BC is 1 or 0
            
             bool NewGrid = false;  //set true if grid will be generated from scratch rather than use a template false by default
             bool NewSoil = false; //set true if a new soil file will be generated
@@ -178,10 +180,18 @@ namespace test_database_app
             dtLayers.Columns.Add(new DataColumn("Depth", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("InitType", typeof(string)));
             dtLayers.Columns.Add(new DataColumn("OM", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("HumusC", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("HumusN", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("LitterC", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("LitterN", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("ManureC", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("ManureN", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("NO3", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("NH4", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("hNew", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("Tmpr", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("CO2", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("O2", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("Sand", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("Silt", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("Clay", typeof(double)));
@@ -191,7 +201,7 @@ namespace test_database_app
             dtLayers.Columns.Add(new DataColumn("thr", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("ths", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("tha", typeof(double)));
-            dtLayers.Columns.Add(new DataColumn("th", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("thm", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("alpha", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("n", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("ks", typeof(double)));
@@ -199,10 +209,18 @@ namespace test_database_app
             dtLayers.Columns.Add(new DataColumn("thk", typeof(double)));
             // the following columns are not in the input data but are needed for calculations
             dtLayers.Columns.Add(new DataColumn("OM_Slope", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("HumusC_Slope", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("HumusN_Slope", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("LitterC_Slope", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("LitterN_Slope", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("ManureC_Slope", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("ManureN_Slope", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("NO3_Slope", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("NH4_Slope", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("hNew_Slope", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("Tmpr_Slope", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("CO2_Slope", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("O2_Slope", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("Sand_Slope", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("Silt_Slope", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("Clay_Slope", typeof(double)));
@@ -399,12 +417,16 @@ namespace test_database_app
             rootweightperslab = Convert.ToDouble(strFields[2]);//root weight per slab
             // get boundary code
             sr.ReadLine();   // get header for boundary code line
+            sr.ReadLine();    //get second header
             strFields= sr.ReadLine().Split(charSeparators1, StringSplitOptions.RemoveEmptyEntries);
             BottomBC = Convert.ToInt16(strFields[0]);
-
+            GasBCTop = Convert.ToInt16(strFields[1]);
+            GasBCBottom= Convert.ToInt16(strFields[2]);
+            sr.ReadLine();  // get first header for soil properties
             sr.ReadLine(); // get header for soil properties
-            //Bottom depth   InitType   OM     no3          NH4      hNew      Tmpr ..
-            //                Sand Silt Clay  BD   TH33  TH1500  thr	ths	tha	th	Alfa	n	Ks	Kk	thk
+            //Bottom depth   InitType   OM    Humus_C  Humus_N Litter_C Litter_N Manure_C Manure_N
+            //                 no3          NH4      hNew      Tmpr  CO2  O2  
+            //                Sand Silt Clay  BD   TH33  TH1500  thr	ths	tha	thm	Alfa	n	Ks	Kk	thk
             //This section parses the line of data read from the layer file to obtain individual values
             // layer table is built for all scenarios, even soil only ones.
             do
@@ -453,13 +475,16 @@ namespace test_database_app
             }
 
             //Now calculate slopes of changes in properties from layer to layer so we can interpolate
-            //If we add columns before OM then we have to change the counters here
-            
+            //If we add columns after OM then we have to increase the counter in dtLayers.Rows[i + 1][j - 21]. j-21 should begin
+            // I think this should be the total number of columns minus the number of columns before OM
+            //with column 2 if we add anything after OM. if you add a column before OM then decrease this number
+            // 
+            //TODO Need to edit resolve this
             for (i = 0; i < MatNum - 1; i++)
             {
-                for (j = dtLayers.Columns.IndexOf("thk")+1; j < dtLayers.Columns.Count - 2; j++)  //slopes begin at column 12, last two columns are y and y_mid values
-                {
-                        dtLayers.Rows[i][j] = ((double)dtLayers.Rows[i + 1][j - 20] - (double)dtLayers.Rows[i][j - 20])
+               for (j = dtLayers.Columns.IndexOf("thk")+1; j < dtLayers.Columns.Count - 2; j++)  //slopes begin at column 15, last two columns are y and y_mid values
+                {// add 1 here for each column added to the layer file. I need to create a generalized method
+                        dtLayers.Rows[i][j] = ((double)dtLayers.Rows[i + 1][j - 28] - (double)dtLayers.Rows[i][j - 28])
                                            / ((double)dtLayers.Rows[i + 1]["Y_Mid"] - (double)dtLayers.Rows[i]["Y_Mid"]); // calculate slopes needed to interpolate
                     // soil properties through the profile
 
@@ -525,7 +550,7 @@ namespace test_database_app
                 }
                 xSegment = myUtil.CaclXNodes(RowSpacing);
                 //Now write data to input files needed for the grid generator
-                myUtil.WriteToGridGenFile(GridGenInput, MasterSegment, xSegment, BottomBC);
+                myUtil.WriteToGridGenFile(GridGenInput, MasterSegment, xSegment, BottomBC, GasBCTop, GasBCBottom);
                 try
                 {
                     GRIDGENDLL();  //call fortran program here
@@ -621,18 +646,12 @@ namespace test_database_app
 
                 // now output grid file
 
-                myUtil.WriteGridFile(dsGrid, TheseFiles.GridFileForOutput, GridTemplateFile, MatNum, BottomBC);
+                myUtil.WriteGridFile(dsGrid, TheseFiles.GridFileForOutput, GridTemplateFile, MatNum, BottomBC, GasBCTop, GasBCBottom);
                                 dtGrid = dsGrid.Tables["Node"];
                     //Now get Nodal Data. Need node numbers from grid table and other information from layer file
                     myUtil.CalculateRoot(dsGrid.Tables["Node"], dtElem4Grid, ProfileDepth, PlantingDepth, xRootExtent, rootweightperslab);// WSun call root density and add a new column in nodal file
                     dtNodal = myUtil.CreateNodalTable(dtGrid);
                   
-                    // add root information to element table
-                    // if (GenRoot)
-                    // WSun call root density and add a new column in nodal file
-                    //{
-                  //  myUtil.CalculateRoot(dsGrid.Tables["Node"], dtElem4Grid, ProfileDepth, PlantingDepth, xRootExtent);
-               // }
 
 
                     // Now add layer information to the nodal table
@@ -645,15 +664,38 @@ namespace test_database_app
                     foreach (DataRow row in myRow)
                     {
                         // caculate Nh and Ch here. Need OM and BD.
+                        // OM here is g OM/g of soil
+                        // in the case of rotations where we have OM for the first crop, later OM contents will be calculate
+                        // from HumusN and HumusC that are simulated. The values will be input as -1 if we need to make
+                        // an initial calculation
                         row["NO3"] = Convert.ToDouble(dtLayers.Rows[0]["NO3"]); //initially it is ppm or g NO3 per 1,000,000 grams of soil (ug/g) 
                         row["Tmpr"] = Convert.ToDouble(dtLayers.Rows[0]["Tmpr"]);
+                        row["CO2"] = Convert.ToDouble(dtLayers.Rows[0]["CO2"]);
+                        row["O2"] = Convert.ToDouble(dtLayers.Rows[0]["O2"]);
                         row["hNew"] = Convert.ToDouble(dtLayers.Rows[0]["hNew"]);
                         row["NH4"] = Convert.ToDouble(dtLayers.Rows[0]["NH4"]);
-                        TempCalc = ((double)dtLayers.Rows[0]["BD"] * 1.0e6   //gives ug per cm3
+                        row["HumusC"] = Convert.ToDouble(dtLayers.Rows[0]["HumusC"]);
+                        row["HumusN"] = Convert.ToDouble(dtLayers.Rows[0]["HumusN"]);
+                        //if this is the first simulation of a rotation, there will be no values for humusC nor for humusN
+                        // thus they will be '-1' and a value will need to be calculated
+                        // if it is part of a rotation and there is Humus components from a previous simulation, these columns will
+                        // have values
+                        // OM is g OM/g soil OM*BD -> g OM/cm3 soil. mulitply by 1e6 to give ug OM/cm3 of soil
+                        if ((double)row["HumusC"]<=-1.0)
+                        {
+                            TempCalc = ((double)dtLayers.Rows[0]["BD"] * 1.0e6   //gives ug per cm3
                                  * (double)dtLayers.Rows[0]["OM"]);          //gives ug OM cm3
-                        row["Ch"] = TempCalc * PERCENT_C;                    //gives ug organic C per cm3 soil
-                        row["Nh"] = TempCalc * PERCENT_N;   //gives ug organic N per cm3 soil
+
+                                row["HumusN"] = TempCalc * PERCENT_N;   //gives ug organic N per cm3 soil
+                                TempCalc = TempCalc- (double)row["HumusN"]; //subtract N left over is contribution from organic C
+                                row["HumusC"] = TempCalc * PERCENT_C;                    //gives ug organic C per cm3 soil
+                          }
                         
+
+                        row["LitterC"] = Convert.ToDouble(dtLayers.Rows[0]["LitterC"]);
+                        row["LitterN"] = Convert.ToDouble(dtLayers.Rows[0]["LitterN"]);
+                        row["ManureC"] = Convert.ToDouble(dtLayers.Rows[0]["ManureC"]);
+                        row["ManureN"] = Convert.ToDouble(dtLayers.Rows[0]["ManureN"]);
                     } // finished looping through row
       
                 for (i = 0; i < MatNum - 1; i++)
@@ -686,12 +728,31 @@ namespace test_database_app
                             // caculate Nh and Ch here. Need OM and BD.
                             row["NO3"] = Convert.ToDouble(dtLayers.Rows[i]["NO3"]) + Convert.ToDouble(dtLayers.Rows[i]["NO3_Slope"]) * dy;
                             row["Tmpr"] = Convert.ToDouble(dtLayers.Rows[i]["Tmpr"]) + Convert.ToDouble(dtLayers.Rows[i]["Tmpr_Slope"]) * dy;
+                            row["CO2"] = Convert.ToDouble(dtLayers.Rows[i]["CO2"]) + Convert.ToDouble(dtLayers.Rows[i]["CO2_Slope"]) * dy;
+                            row["O2"] = Convert.ToDouble(dtLayers.Rows[i]["O2"]) + Convert.ToDouble(dtLayers.Rows[i]["O2_Slope"]) * dy;
+
                             row["NH4"] = Convert.ToDouble(dtLayers.Rows[i]["NH4"]) + Convert.ToDouble(dtLayers.Rows[i]["NH4_Slope"]) * dy;
-                            TempCalc = ((double)dtLayers.Rows[i]["BD"] + Convert.ToDouble(dtLayers.Rows[i]["BD_Slope"]) * dy) * 1.0e6
+                            if ((double)dtLayers.Rows[i]["HumusC"] <= -1.0)
+                            {
+                                TempCalc = ((double)dtLayers.Rows[i]["BD"] + Convert.ToDouble(dtLayers.Rows[i]["BD_Slope"]) * dy) * 1.0e6
                                      * ((double)dtLayers.Rows[i]["OM"] + Convert.ToDouble(dtLayers.Rows[i]["OM_Slope"]) * dy);
-                            row["Ch"] = TempCalc * PERCENT_C;
-                            row["Nh"] = TempCalc * PERCENT_N;
-                            
+  
+                                row["HumusN"] = TempCalc * PERCENT_N;
+                                TempCalc = TempCalc - (double)row["HumusN"]; //subtract N left over is contribution from organic C
+                                row["HumusC"] = TempCalc * PERCENT_C;
+                            }
+                            else
+                            {
+                                row["HumusC"] = Convert.ToDouble(dtLayers.Rows[i]["HumusC"]) + Convert.ToDouble(dtLayers.Rows[i]["HumusC_Slope"]) * dy;
+                                row["HumusN"] = Convert.ToDouble(dtLayers.Rows[i]["HumusN"]) + Convert.ToDouble(dtLayers.Rows[i]["HumusN_Slope"]) * dy;
+
+                            }
+                            row["LitterC"] = Convert.ToDouble(dtLayers.Rows[i]["LitterC"]) + Convert.ToDouble(dtLayers.Rows[i]["LitterC_Slope"]) * dy;
+                            row["LitterN"] = Convert.ToDouble(dtLayers.Rows[i]["LitterN"]) + Convert.ToDouble(dtLayers.Rows[i]["LitterN_Slope"]) * dy;
+                            row["ManureC"] = Convert.ToDouble(dtLayers.Rows[i]["ManureC"]) + Convert.ToDouble(dtLayers.Rows[i]["ManureC_Slope"]) * dy;
+                            row["ManureN"] = Convert.ToDouble(dtLayers.Rows[i]["ManureN"]) + Convert.ToDouble(dtLayers.Rows[i]["ManureN_Slope"]) * dy;
+
+
                         } // finished looping through row
                     } //finished looping through table
 // for hNew

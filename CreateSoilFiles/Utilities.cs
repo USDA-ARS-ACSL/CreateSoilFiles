@@ -134,9 +134,11 @@ namespace test_database_app
             return dsGrid;
 
         }
-      
+        
 
-        public void WriteGridFile(DataSet dsGrid, String NewGridFile, String OldGridFile, int MatNum, int BottomBC)
+
+        public void WriteGridFile(DataSet dsGrid, String NewGridFile, String OldGridFile, int MatNum, int BottomBC,
+                     int GasBCTop, int GasBCBottom)
         {
             // this writes the grid file by taking items from the original file (template) and copying
             // to the new file. The grid data with the new material numbers come from the datatable. 
@@ -209,7 +211,7 @@ namespace test_database_app
             srIn.Close();
 
         } //End WriteGridFile
-        public void WriteNodalFile(String NodalFileName, DataTable dtNodal)
+        public void WriteNodalFile(String NodalFileName, DataTable dtNodal, DataTable dtLayers)
         {
             StreamWriter srOut = new StreamWriter(new FileStream(NodalFileName, FileMode.Create, FileAccess.Write));
             srOut.WriteLine(" ***************** NODAL INFORMATION for MAIZSIM *******************************************************");
@@ -258,6 +260,8 @@ namespace test_database_app
             dtNodal.Columns.Add(new DataColumn("NO3", typeof(double)));
             dtNodal.Columns.Add(new DataColumn("Tmpr", typeof(double)));
             dtNodal.Columns.Add(new DataColumn("hNew", typeof(double)));
+            dtNodal.Columns.Add(new DataColumn("CO2", typeof(double)));
+            dtNodal.Columns.Add(new DataColumn("O2", typeof(double)));
             dtNodal.Columns.Add(new DataColumn("RTWT", typeof(double)));
             dtNodal.Columns.Add(new DataColumn("MatNum",typeof(double)));
             dtNodal.Columns.Add(new DataColumn("Y", typeof(double))); //needed to calculate slope later
@@ -409,12 +413,12 @@ namespace test_database_app
         }
 
 
-        public void WriteToGridGenFile(string GridGenInput, ArrayList YSegment, List<double> xSegment, int BottomBC)
+        public void WriteToGridGenFile(string GridGenInput, ArrayList YSegment, List<double> xSegment, int BottomBC, int GasBCTop, int GasBCBottom)
         {
             //Writes to the GridGenFile which is used by the fortran program
             int i, j;
             StreamWriter srOut = new StreamWriter(new FileStream(GridGenInput, FileMode.Create, FileAccess.Write));
-            srOut.WriteLine("IJ  E00  n00   NumNP  NumEl NMAt  BC");
+            srOut.WriteLine("IJ  E00  n00   NumNP  NumEl NMAt  BC  GasBCTop   GasBCBottom");
             //bandwidth is the size of the x array
             
             // calculate total number of y nodes
@@ -427,9 +431,8 @@ namespace test_database_app
                     YnodeCount++;
                 }
             }
-            // added two zeros at the end so the gridgen would be consistent with co2 version
-            srOut.WriteLine(" {0} 1   1  {1}   {2}  0  {3}  0   0", xSegment.Count(), xSegment.Count()*YnodeCount,
-            (xSegment.Count()-1)*(YnodeCount-1), BottomBC);
+            srOut.WriteLine(" {0} 1   1  {1}   {2}  0  {3}   {4}   {5}", xSegment.Count(), xSegment.Count()*YnodeCount,
+            (xSegment.Count()-1)*(YnodeCount-1), BottomBC, GasBCTop, GasBCBottom);
 
 
             srOut.WriteLine("x(j): ");
@@ -596,13 +599,13 @@ namespace test_database_app
             int done=0;
             StreamWriter srOut = new StreamWriter(new FileStream(SoilFileName, FileMode.Create, FileAccess.Write));
             srOut.WriteLine("           *** Material information ****                                                                   g/g  ");
-            srOut.WriteLine("   thr       ths         tha       th      Alfa      n        Ks         Kk       thk       BulkD     OM    Sand    Silt   InitType");
+            srOut.WriteLine("   thr       ths         tha       thm      Alfa      n        Ks         Kk       thk       BulkD     OM    Sand    Silt   InitType");
             foreach (DataRow row in dtLayers.Rows)
             {
                 srOut.WriteLine(" {0:0.000}\t {1:0.000}\t {2:0.000}\t {3:0.000}\t {4:0.00000}\t {5:0.00000}\t {6:0.000}\t"   
                                    + " {7:0.000}\t  {8:0.000}\t {9:0.000}\t {10:0.0000}\t {11:0.00}\t {12:0.00}\t  {13:''}",
 
-                                   row["thr"], row["ths"], row["tha"], row["th"],
+                                   row["thr"], row["ths"], row["tha"], row["thm"],
                                     row["alpha"], row["n"], row["Ks"], row["Kk"],
                                      row["thk"], row["BD"], row["OM"], row["sand"],row["silt"], row["InitType"]);
             }
