@@ -192,6 +192,7 @@ namespace test_database_app
             dtLayers.Columns.Add(new DataColumn("Tmpr", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("CO2", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("O2", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("N2O", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("Sand", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("Silt", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("Clay", typeof(double)));
@@ -221,6 +222,7 @@ namespace test_database_app
             dtLayers.Columns.Add(new DataColumn("Tmpr_Slope", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("CO2_Slope", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("O2_Slope", typeof(double)));
+            dtLayers.Columns.Add(new DataColumn("N2O_Slope", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("Sand_Slope", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("Silt_Slope", typeof(double)));
             dtLayers.Columns.Add(new DataColumn("Clay_Slope", typeof(double)));
@@ -484,7 +486,7 @@ namespace test_database_app
             {
                for (j = dtLayers.Columns.IndexOf("thk")+1; j < dtLayers.Columns.Count - 2; j++)  //slopes begin at column 15, last two columns are y and y_mid values
                 {// add 1 here for each column added to the layer file. I need to create a generalized method
-                        dtLayers.Rows[i][j] = ((double)dtLayers.Rows[i + 1][j - 28] - (double)dtLayers.Rows[i][j - 28])
+                        dtLayers.Rows[i][j] = ((double)dtLayers.Rows[i + 1][j - 29] - (double)dtLayers.Rows[i][j - 29])
                                            / ((double)dtLayers.Rows[i + 1]["Y_Mid"] - (double)dtLayers.Rows[i]["Y_Mid"]); // calculate slopes needed to interpolate
                     // soil properties through the profile
 
@@ -673,6 +675,7 @@ namespace test_database_app
                         row["CO2"] = Convert.ToDouble(dtLayers.Rows[0]["CO2"]);
                         row["O2"] = Convert.ToDouble(dtLayers.Rows[0]["O2"]);
                         row["hNew"] = Convert.ToDouble(dtLayers.Rows[0]["hNew"]);
+                        row["N2O"] = Convert.ToDouble(dtLayers.Rows[0]["N2O"]);
                         row["NH4"] = Convert.ToDouble(dtLayers.Rows[0]["NH4"]);
                         row["HumusC"] = Convert.ToDouble(dtLayers.Rows[0]["HumusC"]);
                         row["HumusN"] = Convert.ToDouble(dtLayers.Rows[0]["HumusN"]);
@@ -730,6 +733,7 @@ namespace test_database_app
                             row["Tmpr"] = Convert.ToDouble(dtLayers.Rows[i]["Tmpr"]) + Convert.ToDouble(dtLayers.Rows[i]["Tmpr_Slope"]) * dy;
                             row["CO2"] = Convert.ToDouble(dtLayers.Rows[i]["CO2"]) + Convert.ToDouble(dtLayers.Rows[i]["CO2_Slope"]) * dy;
                             row["O2"] = Convert.ToDouble(dtLayers.Rows[i]["O2"]) + Convert.ToDouble(dtLayers.Rows[i]["O2_Slope"]) * dy;
+                            row["N2O"] = Convert.ToDouble(dtLayers.Rows[i]["N2O"]) + Convert.ToDouble(dtLayers.Rows[i]["N2O_Slope"]) * dy;
 
                             row["NH4"] = Convert.ToDouble(dtLayers.Rows[i]["NH4"]) + Convert.ToDouble(dtLayers.Rows[i]["NH4_Slope"]) * dy;
                             if ((double)dtLayers.Rows[i]["HumusC"] <= -1.0)

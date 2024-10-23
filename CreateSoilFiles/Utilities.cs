@@ -52,7 +52,7 @@ namespace test_database_app
 
         public DataSet ParseGridFile(string GridFile)
         {
-            //This procedure reads the Grid file and extracts the grid 
+            //This procedure reads the Grid file (.GRD) and extracts the grid 
             // the procedure creates a table to hold the grid data and fills it with data from the file.
             StreamReader sr = new StreamReader(new FileStream(GridFile, FileMode.Open, FileAccess.Read));
             int node, i, element;
@@ -213,6 +213,7 @@ namespace test_database_app
         } //End WriteGridFile
         public void WriteNodalFile(String NodalFileName, DataTable dtNodal, DataTable dtLayers)
         {
+            // this writes the nodal file (.nod)
             StreamWriter srOut = new StreamWriter(new FileStream(NodalFileName, FileMode.Create, FileAccess.Write));
             srOut.WriteLine(" ***************** NODAL INFORMATION for MAIZSIM *******************************************************");
             foreach (DataColumn column in dtNodal.Columns)
@@ -262,6 +263,7 @@ namespace test_database_app
             dtNodal.Columns.Add(new DataColumn("hNew", typeof(double)));
             dtNodal.Columns.Add(new DataColumn("CO2", typeof(double)));
             dtNodal.Columns.Add(new DataColumn("O2", typeof(double)));
+            dtNodal.Columns.Add(new DataColumn("N2O", typeof(double)));
             dtNodal.Columns.Add(new DataColumn("RTWT", typeof(double)));
             dtNodal.Columns.Add(new DataColumn("MatNum",typeof(double)));
             dtNodal.Columns.Add(new DataColumn("Y", typeof(double))); //needed to calculate slope later
